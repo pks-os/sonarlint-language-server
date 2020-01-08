@@ -39,9 +39,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
@@ -95,6 +99,7 @@ import org.sonarsource.sonarlint.core.client.api.standalone.StandaloneAnalysisCo
 import org.sonarsource.sonarlint.core.client.api.standalone.StandaloneGlobalConfiguration;
 import org.sonarsource.sonarlint.core.client.api.standalone.StandaloneSonarLintEngine;
 import org.sonarsource.sonarlint.core.client.api.util.FileUtils;
+import org.sonarsource.sonarlint.ls.SonarLintExtendedLanguageClient.JavaConfigResponse;
 import org.sonarsource.sonarlint.ls.connected.ProjectBindingManager;
 import org.sonarsource.sonarlint.ls.connected.ProjectBindingWrapper;
 import org.sonarsource.sonarlint.ls.connected.ServerIssueTrackerWrapper;
@@ -467,6 +472,7 @@ public class SonarLintLanguageServer implements SonarLintExtendedLanguageServer,
       .setBaseDir(baseDir)
       .addInputFiles(new DefaultClientInputFile(uri, getFileRelativePath(baseDir, uri), content, isTest(settings, uri), languageIdPerFileURI.get(uri)))
       .putAllExtraProperties(settings.getAnalyzerProperties())
+      .putAllExtraProperties(configureJavaProperties(uri))
       .addExcludedRules(settingsManager.getCurrentSettings().getExcludedRules())
       .addIncludedRules(settingsManager.getCurrentSettings().getIncludedRules())
       .build();
@@ -487,6 +493,7 @@ public class SonarLintLanguageServer implements SonarLintExtendedLanguageServer,
       .setBaseDir(baseDir)
       .addInputFile(new DefaultClientInputFile(uri, getFileRelativePath(baseDir, uri), content, isTest(settings, uri), languageIdPerFileURI.get(uri)))
       .putAllExtraProperties(settings.getAnalyzerProperties())
+      .putAllExtraProperties(configureJavaProperties(uri))
       .build();
     if (settingsManager.getCurrentSettings().hasLocalRuleConfiguration()) {
       LOG.debug("Local rules settings are ignored, using quality profile from server");
@@ -507,6 +514,34 @@ public class SonarLintLanguageServer implements SonarLintExtendedLanguageServer,
     int analysisTime = (int) (System.currentTimeMillis() - start);
 
     return new AnalysisResultsWrapper(analysisResults, analysisTime);
+  }
+
+  private Map<String, String> configureJavaProperties(URI uri) {
+    if ("java".equals(languageIdPerFileURI.get(uri))) {
+      JavaConfigResponse javaConfig;
+      try {
+        javaConfig = client.getJavaConfig(uri.toString()).get(1, TimeUnit.MINUTES);
+      } catch (InterruptedException e) {
+        interrupted(e);
+        return Collections.emptyMap();
+      } catch (ExecutionException | TimeoutException e) {
+        LOG.error("Unable to fetch configuration", e);
+        return Collections.emptyMap();
+      }
+      if (javaConfig != null) {
+        Map<String, String> props = new HashMap<>();
+        props.put("sonar.java.source", javaConfig.getLevel());
+        props.put("sonar.java.libraries", Stream.of(javaConfig.getClasspath()).collect(Collectors.joining(",")));
+        props.put("sonar.java.test.libraries", Stream.of(javaConfig.getTestClasspath()).collect(Collectors.joining(",")));
+        return props;
+      }
+    }
+    return Collections.emptyMap();
+  }
+
+  private static void interrupted(InterruptedException e) {
+    LOG.debug("Interrupted!", e);
+    Thread.currentThread().interrupt();
   }
 
   private static boolean isTest(WorkspaceFolderSettings settings, URI uri) {

@@ -274,6 +274,11 @@ abstract class AbstractLanguageServerMediumTests {
         return result;
       });
     }
+
+    @Override
+    public CompletableFuture<JavaConfigResponse> getJavaConfig(String fileUri) {
+      return null;
+    }
   }
 
   protected void emulateConfigurationChangeOnClient(@Nullable String testFilePattern, @Nullable Boolean disableTelemetry, String... ruleConfigs) {

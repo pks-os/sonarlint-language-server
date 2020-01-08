@@ -197,7 +197,7 @@ public class ProjectBindingManager implements WorkspaceSettingsChangeListener, W
     ConnectedGlobalConfiguration configuration = ConnectedGlobalConfiguration.builder()
       .setServerId(serverId)
       .setExtraProperties(extraProperties)
-      .addExcludedCodeAnalyzers("abap", "cpp", "cobol", "java", "kotlin", "pli", "rpg", "ruby", "sonarscala", "swift", "tsql", "xml")
+      .addExcludedCodeAnalyzers("abap", "cpp", "cobol", "kotlin", "pli", "rpg", "ruby", "sonarscala", "swift", "tsql", "xml")
       .setLogOutput(clientLogOutput)
       .build();
 

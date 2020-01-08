@@ -19,8 +19,45 @@
  */
 package org.sonarsource.sonarlint.ls;
 
+import java.util.concurrent.CompletableFuture;
+import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.services.LanguageClient;
 
 public interface SonarLintExtendedLanguageClient extends LanguageClient {
+
+  @JsonRequest("sonarlint/getJavaConfig")
+  CompletableFuture<JavaConfigResponse> getJavaConfig(String fileUri);
+
+  public static class JavaConfigResponse {
+
+    private String level;
+    private String[] classpath;
+    private String[] testClasspath;
+
+    public String getLevel() {
+      return level;
+    }
+
+    public void setLevel(String level) {
+      this.level = level;
+    }
+
+    public String[] getClasspath() {
+      return classpath;
+    }
+
+    public void setClasspath(String[] classpath) {
+      this.classpath = classpath;
+    }
+
+    public String[] getTestClasspath() {
+      return testClasspath;
+    }
+
+    public void setTestClasspath(String[] testClasspath) {
+      this.testClasspath = testClasspath;
+    }
+
+  }
 
 }
